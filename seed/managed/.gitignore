@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+build/
+
+# .terraform.lock.hcl is intentionally NOT ignored - commit it.
