@@ -8,8 +8,11 @@ Run:  python scripts/verify_memory.py
 
 import sys
 
+import sys
+
 from dotenv import load_dotenv
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 load_dotenv()
 from biographer.db import pool
 from biographer.memory import store

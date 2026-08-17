@@ -150,14 +150,14 @@ def _identifier_lane(account_id: str, plan: Plan, limit: int) -> list[Hit]:
                 )
             # Memories are keyed by resource, so an identifier finds them too.
             for row in conn.execute(
-                "SELECT memory_id, topic, body, origin FROM memories"
+                "SELECT memory_id, topic, body, origin, resource_key FROM memories"
                 " WHERE account_id = %s AND retired_at IS NULL"
                 "   AND (resource_key LIKE %s OR body LIKE %s) LIMIT %s",
                 (account_id, f"%{token}%", f"%{token}%", limit),
             ):
                 hits.append(
                     Hit("memory", str(row[0]), row[1], row[2], {"identifier"},
-                        payload={"origin": row[3]})
+                        payload={"origin": row[3], "resource_key": row[4]})
                 )
     return hits
 

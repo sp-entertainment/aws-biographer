@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 from typing import Any
@@ -165,9 +166,16 @@ def query_or_fallback(sql: str) -> tuple[str, str]:
 
     from .db import pool
 
-    stripped = sql.strip().rstrip(";")
-    if not stripped.lower().startswith(("select", "with")):
-        raise MCPError("fallback read path accepts SELECT and WITH only")
+    # Models routinely prefix SQL with a comment or a blank line, and rejecting
+    # that reads to the model as "the query was wrong" -- it then rewrites the
+    # query instead of the formatting and burns a turn each time.
+    stripped = re.sub(r"^\s*(--[^\n]*\n|/\*.*?\*/|\s)+", "", sql, flags=re.DOTALL)
+    stripped = stripped.strip().rstrip(";")
+    if not stripped.lower().startswith(("select", "with", "show", "table")):
+        raise MCPError(
+            "read-only path accepts SELECT, WITH, SHOW and TABLE only; "
+            f"got: {stripped[:60]}"
+        )
     with pool().connection() as conn:
         conn.execute("SET TRANSACTION READ ONLY")
         rows = conn.execute(stripped).fetchall()
