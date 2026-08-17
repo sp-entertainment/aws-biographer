@@ -146,7 +146,7 @@ Choose: **you personally** or **Stone Pack Entertainment LLC**.
 1. Console → **IAM** → **Roles** → **Create role**.
 2. Trusted entity: **AWS account** → *this account* (for local dev), and check **Require external ID**, generate a random string for it.
 3. Permissions: attach **`ReadOnlyAccess`** and **`SecurityAudit`** (both AWS-managed).
-4. Name it `AccountBiographerReadOnly`.
+4. Name it something identifiable. Do not commit the name or ARN.
 5. Create.
 
 📋 Record: role ARN and external ID.
