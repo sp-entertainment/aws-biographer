@@ -24,7 +24,23 @@ from .loop import ask, default_account
 
 log = logging.getLogger(__name__)
 
-WEB_DIR = pathlib.Path(__file__).resolve().parents[3] / "web"
+def _web_dir() -> pathlib.Path:
+    """Locate web/ in both layouts.
+
+    In the repo this file is src/biographer/agent/server.py and web/ is three
+    levels up. In the Lambda bundle the package sits at the task root, so it is
+    only two. Hard-coding either index serves a 500 in the other environment,
+    which is the kind of bug that only appears after deploying.
+    """
+    here = pathlib.Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "web"
+        if (candidate / "index.html").is_file():
+            return candidate
+    raise RuntimeError(f"web/ not found above {here}")
+
+
+WEB_DIR = _web_dir()
 
 # Spend controls for a public, unauthenticated demo. Judges get no login, so the
 # ceiling has to sit somewhere; these are the cheapest useful ones.

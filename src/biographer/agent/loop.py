@@ -372,11 +372,36 @@ def ask(account_id: str, question: str,
     return turn
 
 
-def default_account() -> str:
+def known_accounts() -> list[dict[str, Any]]:
+    """Every account this installation has scanned.
+
+    The schema has carried account_id as the leading column of every table
+    since migration 001, so multi-account was never a migration -- it is a
+    WHERE clause. This is the only place that needed to learn there can be
+    more than one.
+    """
     with pool().connection() as conn:
-        row = conn.execute(
-            "SELECT account_id FROM accounts ORDER BY created_at LIMIT 1"
-        ).fetchone()
-    if not row:
+        return [
+            {"account_id": r[0], "alias": r[1], "is_sandbox": r[2], "resources": r[3]}
+            for r in conn.execute(
+                "SELECT a.account_id, a.alias, a.is_sandbox,"
+                "       (SELECT count(*) FROM resources r"
+                "         WHERE r.account_id = a.account_id)"
+                "  FROM accounts a ORDER BY a.created_at"
+            )
+        ]
+
+
+def default_account() -> str:
+    """The account to answer about when the caller names none.
+
+    Prefers a non-sandbox account so a demo deployment does not silently answer
+    about the wrong one; falls back to whatever exists.
+    """
+    accounts = known_accounts()
+    if not accounts:
         raise RuntimeError("no account has been scanned yet")
-    return row[0]
+    for account in accounts:
+        if not account["is_sandbox"]:
+            return account["account_id"]
+    return accounts[0]["account_id"]

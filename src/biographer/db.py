@@ -25,12 +25,44 @@ _MIGRATION_NAME = re.compile(r"^(\d{3})_[a-z0-9_]+\.sql$")
 _pool: ConnectionPool | None = None
 
 
+def connection_string() -> str:
+    """The DSN, with TLS trust resolved for environments that have no home dir.
+
+    `sslmode=verify-full` makes libpq look for ~/.postgresql/root.crt, which does
+    not exist in Lambda -- every connection fails with "root certificate file
+    does not exist" and surfaces only as a pool timeout. `sslrootcert=system`
+    points it at the OS trust store instead.
+
+    `sslrootcert=system` was the first attempt and it fails on Windows, where
+    libpq has no usable system store -- it fixed the deployment and broke local
+    development. botocore ships a CA bundle on every platform it runs on and is
+    already a hard dependency here, so pointing at that gives one code path that
+    works in both places without adding anything to install.
+
+    Deliberately not solved by lowering sslmode. verify-full is what makes this
+    a hostname-verified TLS connection to a database holding the account's
+    entire memory; weakening it to silence a path error would trade real
+    security for convenience.
+    """
+    dsn = settings().database_url
+    if "sslrootcert=" in dsn or not ("verify-full" in dsn or "verify-ca" in dsn):
+        return dsn
+
+    import botocore
+
+    bundle = pathlib.Path(botocore.__file__).parent / "cacert.pem"
+    if not bundle.is_file():  # pragma: no cover - botocore always ships it
+        log.warning("no CA bundle found at %s; leaving DSN untouched", bundle)
+        return dsn
+    return dsn + ("&" if "?" in dsn else "?") + f"sslrootcert={bundle}"
+
+
 def pool() -> ConnectionPool:
     """Process-wide pool. Opened lazily so importing this module is cheap."""
     global _pool
     if _pool is None:
         _pool = ConnectionPool(
-            settings().database_url,
+            connection_string(),
             min_size=1,
             # Lambda handles one request at a time; a large pool would just hold
             # idle connections against the cluster's limit.

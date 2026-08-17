@@ -32,3 +32,8 @@ cdk.out/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts and CDK output
+build/
+infra/cdk.out/
+node_modules/
