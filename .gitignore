@@ -1,0 +1,34 @@
+# Secrets. Never commit these.
+.env
+.env.*
+!.env.example
+*.pem
+credentials
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Terraform. State files can contain resource detail and must stay local.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Tooling downloaded into the working tree
+ccloud/
+ccloud.zip
+cdk.out/
+
+# OS
+.DS_Store
+Thumbs.db

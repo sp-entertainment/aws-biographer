@@ -1,0 +1,20 @@
+[project]
+name = "biographer"
+version = "0.1.0"
+description = "An AWS account agent with verifiable, durable memory in CockroachDB"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.35",
+    "botocore[crt]>=1.35",
+    "psycopg[binary,pool]>=3.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "python-dotenv>=1.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
