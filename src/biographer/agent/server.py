@@ -19,6 +19,7 @@ from typing import Any
 from ..bedrock import spend_summary
 from ..db import pool
 from ..memory import analyses
+from ..memory.verify import recent_retirements
 from .loop import ask, default_account
 
 log = logging.getLogger(__name__)
@@ -111,6 +112,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             page = (WEB_DIR / "index.html").read_bytes()
             self._send(200, page, "text/html; charset=utf-8")
+        elif self.path == "/retired":
+            body = json.dumps(recent_retirements(default_account(), 20), default=str)
+            self._send(200, body.encode(), "application/json")
         elif self.path == "/spend":
             self._send(200, json.dumps(spend_summary()).encode(), "application/json")
         else:
@@ -143,6 +147,10 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "headers": {"Content-Type": "text/html; charset=utf-8"},
             "body": (WEB_DIR / "index.html").read_text(encoding="utf-8"),
         }
+    if method == "GET" and path == "/retired":
+        return {"statusCode": 200, "headers": {"Content-Type": "application/json"},
+                "body": json.dumps(recent_retirements(default_account(), 20),
+                                   default=str)}
     if method == "GET" and path == "/spend":
         return {"statusCode": 200, "headers": {"Content-Type": "application/json"},
                 "body": json.dumps(spend_summary())}

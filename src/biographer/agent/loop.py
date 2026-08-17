@@ -17,7 +17,8 @@ from typing import Any
 from .. import graph, mcp
 from ..bedrock import converse
 from ..db import pool
-from ..memory import store
+from ..memory import findings, store
+from ..memory.verify import recent_retirements
 from ..retrieval import search
 
 log = logging.getLogger(__name__)
@@ -109,6 +110,41 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "toolSpec": {
+            "name": "retired_memories",
+            "description": (
+                "Things I used to believe about this account and no longer do, "
+                "with the reason each stopped being true. Use when asked what "
+                "changed, what I got wrong, or how my memory stays current."
+            ),
+            "inputSchema": {"json": {
+                "type": "object",
+                "properties": {"limit": {"type": "integer"}},
+            }},
+        }
+    },
+    {
+        "toolSpec": {
+            "name": "suppress_finding",
+            "description": (
+                "Stop reporting a finding the user says is intentional or "
+                "acceptable. Retires any memory already made from it and "
+                "prevents future scans re-raising it. finding_type is one of: "
+                "unattached-eip, orphaned-volume, no-log-retention, "
+                "world-open-sg, untagged."
+            ),
+            "inputSchema": {"json": {
+                "type": "object",
+                "properties": {
+                    "finding_type": {"type": "string"},
+                    "arn": {"type": "string", "description": "Limit to one resource, or omit for account-wide"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["finding_type"],
+            }},
+        }
+    },
+    {
+        "toolSpec": {
             "name": "remember",
             "description": (
                 "Store a durable fact about the account. Use when the user says "
@@ -183,6 +219,17 @@ def _run_tool(account_id: str, name: str, args: dict[str, Any]) -> tuple[str, st
     if name == "blast_radius":
         rows = graph.blast_radius(account_id, args["arn"], args.get("depth", 3))
         return json.dumps(rows, default=str)[:12000], None
+
+    if name == "retired_memories":
+        return json.dumps(
+            recent_retirements(account_id, args.get("limit", 10)), default=str
+        )[:12000], None
+
+    if name == "suppress_finding":
+        findings.suppress(account_id, args["finding_type"], args.get("arn"),
+                          args.get("reason"))
+        return json.dumps({"suppressed": args["finding_type"],
+                           "arn": args.get("arn") or "account-wide"}), None
 
     if name == "remember":
         memory = store.remember(
