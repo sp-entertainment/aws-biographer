@@ -23,6 +23,7 @@ from ..aws import account_id_of, client, session_for
 from ..config import settings
 from ..db import pool
 from . import collectors as collectors_pkg
+from .diff import DiffResult, compute, to_rows
 from .model import GLOBAL, REGISTRY, CollectorSpec, Resource
 from .regions import discover
 
@@ -51,6 +52,7 @@ class ScanResult:
     failures: dict[str, str] = field(default_factory=dict)
     disappeared: list[str] = field(default_factory=list)
     coverage_gaps: dict[str, int] = field(default_factory=dict)
+    delta: DiffResult = field(default_factory=DiffResult)
 
     @property
     def by_service(self) -> dict[str, int]:
@@ -149,16 +151,31 @@ def persist(result: ScanResult) -> str:
     March" a storable memory instead of a recomputable fact -- and overwriting
     it on every scan would quietly destroy that.
 
-    Resources that were in the cache for a swept region but did not turn up are
-    returned as `disappeared` rather than deleted here. Phase 4 writes the
-    change-log entries from that list; deleting them first would throw away the
-    evidence of the deletion.
+    The diff runs before the upsert, because the previous scan's state is the
+    only thing that says what changed and the upsert destroys it. Resources that
+    vanished from a swept region are recorded as deletions in the change log
+    first, then removed from the cache -- deleting them first would throw away
+    the evidence of the deletion.
     """
     with pool().connection() as conn:
         conn.execute(
             "INSERT INTO accounts (account_id) VALUES (%s) ON CONFLICT DO NOTHING",
             (result.account_id,),
         )
+
+        swept = set(result.regions) | {GLOBAL}
+        previous = {
+            row[0]: {"region": row[1], "name": row[2], "tags": row[3], "config": row[4]}
+            for row in conn.execute(
+                "SELECT arn, region, name, tags, config FROM resources"
+                " WHERE account_id = %s AND region = ANY(%s)",
+                (result.account_id, list(swept)),
+            )
+        }
+        current = {
+            r.arn: {"region": r.region, "name": r.name, "tags": r.tags, "config": r.config}
+            for r in result.resources
+        }
         scan_id = conn.execute(
             "INSERT INTO scans (account_id, regions, stats) VALUES (%s, %s, %s)"
             " RETURNING scan_id",
@@ -207,17 +224,31 @@ def persist(result: ScanResult) -> str:
                     rows,
                 )
 
-        # Only regions this scan actually swept. A region we skipped is not a
-        # region whose resources vanished.
-        swept = result.regions + [GLOBAL]
-        result.disappeared = [
-            row[0]
-            for row in conn.execute(
-                "SELECT arn FROM resources WHERE account_id = %s"
-                " AND region = ANY(%s) AND (last_scan_id IS DISTINCT FROM %s)",
-                (result.account_id, swept, scan_id),
+        # The very first scan of an account is not a moment when every resource
+        # was "created" -- it is the moment we started looking. Recording it as
+        # creation would put a false origin date on the whole account.
+        first_ever = not previous
+        delta = compute(previous, current, swept)
+        result.delta = delta
+
+        if not first_ever and len(delta):
+            change_rows = to_rows(result.account_id, str(scan_id), delta)
+            with conn.cursor() as cur:
+                cur.executemany(
+                    "INSERT INTO changes (account_id, arn, region, change_type,"
+                    " field, old_value, new_value, actor, source, event_id,"
+                    " event_time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,"
+                    " %s, now())",
+                    change_rows,
+                )
+
+        # Evidence is written; now the cache can forget what vanished.
+        result.disappeared = [d.arn for d in delta.deleted]
+        if result.disappeared:
+            conn.execute(
+                "DELETE FROM resources WHERE account_id = %s AND arn = ANY(%s)",
+                (result.account_id, result.disappeared),
             )
-        ]
 
         conn.execute(
             "UPDATE scans SET finished_at = now() WHERE scan_id = %s", (scan_id,)
@@ -260,8 +291,16 @@ if __name__ == "__main__":
             print("\nuncovered taggable resources (no collector):")
             for label, count in sorted(outcome.coverage_gaps.items()):
                 print(f"  {label:<40} {count}")
-        if outcome.disappeared:
-            print(f"disappeared since last scan: {len(outcome.disappeared)}")
+        d = outcome.delta
+        if len(d):
+            print(f"\nchanges since last scan: {len(d)}")
+            for label, items in (("created", d.created), ("deleted", d.deleted),
+                                 ("modified", d.modified)):
+                for item in items[:10]:
+                    suffix = f" [{item.field_name}]" if item.field_name else ""
+                    print(f"  {label:<9} {item.arn}{suffix}")
+        else:
+            print("\nno changes since last scan")
         if outcome.failures:
             print(f"\ncollector failures ({len(outcome.failures)}):")
             for label, code in sorted(outcome.failures.items())[:20]:
