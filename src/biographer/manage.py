@@ -23,7 +23,7 @@ from typing import Any
 
 from .aws import account_id_of, session_for
 from .db import pool
-from .memory import findings
+from .memory import findings, propose
 from .memory.verify import VerificationRun, verify_all
 from .scan.cloudtrail import backfill
 from .scan.runner import run as run_scan
@@ -39,6 +39,8 @@ class ManageResult:
     edges: int = 0
     cloudtrail_events: int = 0
     findings: dict[str, int] = field(default_factory=dict)
+    embedded: int = 0
+    proposals: int = 0
     verification: VerificationRun | None = None
     woke_the_model: bool = False
 
@@ -50,7 +52,8 @@ class ManageResult:
             f"verified {v.checked if v else 0} memories "
             f"({v.refreshed if v else 0} refreshed, {v.retired if v else 0} retired, "
             f"{v.unverifiable if v else 0} unverifiable) | "
-            f"model woken: {self.woke_the_model}"
+            f"model woken: {self.woke_the_model} | "
+            f"embedded {self.embedded}, {self.proposals} edge proposals"
         )
 
 
@@ -76,6 +79,11 @@ def run(*, force_findings: bool = False, backfill_history: bool = False) -> Mana
         result.findings = findings.record(account)
     else:
         log.info("nothing moved; not waking the model")
+
+    # Embeddings for the clustering that proposes candidate edges. Only
+    # resources that lack one are embedded, so this converges to zero cost.
+    result.embedded = propose.backfill_embeddings(account)
+    result.proposals = len(propose.candidates(account))
 
     # Verification always runs. It is pure SQL against the cache the scan just
     # refreshed, so it is nearly free -- and skipping it on a quiet account

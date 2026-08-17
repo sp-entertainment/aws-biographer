@@ -17,7 +17,7 @@ from typing import Any
 from .. import graph, mcp
 from ..bedrock import converse
 from ..db import pool
-from ..memory import findings, store
+from ..memory import findings, propose, store
 from ..memory.verify import recent_retirements
 from ..retrieval import search
 
@@ -145,6 +145,40 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "toolSpec": {
+            "name": "propose_relationships",
+            "description": (
+                "Resource pairs that look closely related but have no known "
+                "connection -- holes in the graph that only the user can fill. "
+                "Use when asked what you are unsure about, or to proactively "
+                "ask the user a useful question."
+            ),
+            "inputSchema": {"json": {"type": "object", "properties": {}}},
+        }
+    },
+    {
+        "toolSpec": {
+            "name": "assert_relationship",
+            "description": (
+                "Record a relationship the USER stated between two resources, "
+                "such as belonging to the same feature. Human-asserted edges "
+                "survive every future scan. Only call this when the user has "
+                "actually confirmed the relationship -- never from your own "
+                "inference."
+            ),
+            "inputSchema": {"json": {
+                "type": "object",
+                "properties": {
+                    "src_arn": {"type": "string"},
+                    "dst_arn": {"type": "string"},
+                    "edge_type": {"type": "string", "description": "e.g. 'member_of' or a feature name"},
+                    "note": {"type": "string"},
+                },
+                "required": ["src_arn", "dst_arn", "edge_type"],
+            }},
+        }
+    },
+    {
+        "toolSpec": {
             "name": "remember",
             "description": (
                 "Store a durable fact about the account. Use when the user says "
@@ -230,6 +264,21 @@ def _run_tool(account_id: str, name: str, args: dict[str, Any]) -> tuple[str, st
                           args.get("reason"))
         return json.dumps({"suppressed": args["finding_type"],
                            "arn": args.get("arn") or "account-wide"}), None
+
+    if name == "propose_relationships":
+        return json.dumps([
+            {"src_arn": p.src_arn, "dst_arn": p.dst_arn,
+             "similarity_distance": round(p.distance, 3), "question": p.question}
+            for p in propose.candidates(account_id)
+        ])[:12000], None
+
+    if name == "assert_relationship":
+        # Invariant 8: this is the only path from a hunch to a confirmed edge,
+        # and it runs only when a human said so.
+        graph.assert_human_edge(account_id, args["src_arn"], args["dst_arn"],
+                                args["edge_type"], args.get("note"))
+        return json.dumps({"recorded": True, "edge_type": args["edge_type"],
+                           "survives_rescans": True}), None
 
     if name == "remember":
         memory = store.remember(

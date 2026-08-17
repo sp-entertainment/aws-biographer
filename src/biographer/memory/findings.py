@@ -150,6 +150,10 @@ def _candidates(account_id: str) -> list[dict[str, Any]]:
                 "claim": {"kind": Kind.UNTAGGED.value, "arn": arn, "region": region},
             })
 
+    for candidate in out:
+        # Single assignment point: the claim always agrees with the finding it
+        # came from, which is what suppression matches on.
+        candidate["claim"]["finding_type"] = candidate["finding_type"]
     return out
 
 
@@ -201,8 +205,8 @@ def suppress(account_id: str, finding_type: str, arn: str | None = None,
             "UPDATE memories SET retired_at = now(),"
             " retire_reason = 'suppressed by a human'"
             " WHERE account_id = %s AND retired_at IS NULL"
-            "   AND (%s IS NULL OR resource_key = %s)"
-            "   AND topic LIKE %s",
-            (account_id, arn, arn, f"{finding_type}%"),
+            "   AND claim->>'finding_type' = %s"
+            "   AND (%s::string IS NULL OR resource_key = %s::string)",
+            (account_id, finding_type, arn, arn),
         )
         conn.commit()
