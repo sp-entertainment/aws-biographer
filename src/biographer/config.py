@@ -25,6 +25,10 @@ class Settings:
     # which is fine for local development and never acceptable in deployment.
     role_arn: str | None
     external_id: str | None
+    # Managed MCP Server, the agent's read path. Service account key, not
+    # interactive OAuth -- Lambda has nobody to approve a browser prompt.
+    crdb_api_key: str | None
+    crdb_cluster_id: str | None
 
 
 def _require(name: str) -> str:
@@ -51,4 +55,6 @@ def settings() -> Settings:
         embed_dim=int(os.environ.get("EMBED_DIM", "1024")),
         role_arn=os.environ.get("BIOGRAPHER_ROLE_ARN") or None,
         external_id=os.environ.get("BIOGRAPHER_EXTERNAL_ID") or None,
+        crdb_api_key=os.environ.get("CRDB_API_KEY") or None,
+        crdb_cluster_id=os.environ.get("CRDB_CLUSTER_ID") or None,
     )
