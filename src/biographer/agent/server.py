@@ -18,6 +18,7 @@ from typing import Any
 
 from ..bedrock import spend_summary
 from ..db import pool
+from ..memory import analyses
 from .loop import ask, default_account
 
 log = logging.getLogger(__name__)
@@ -55,7 +56,8 @@ def _over_budget() -> bool:
         return False
 
 
-def answer(question: str, client: str = "local") -> dict[str, Any]:
+def answer(question: str, client: str = "local",
+           force_refresh: bool = False) -> dict[str, Any]:
     """One question in, one answer out. Shared by the HTTP and Lambda paths."""
     question = (question or "").strip()
     if not question:
@@ -67,9 +69,30 @@ def answer(question: str, client: str = "local") -> dict[str, Any]:
     if _over_budget():
         return {"error": "this demo has reached its model spend ceiling for now"}
 
-    turn = ask(default_account(), question)
+    account = default_account()
+
+    # Reuse-or-refresh, never silent reuse. A cached answer presented as fresh
+    # is indistinguishable from a stale one, and knowing the difference is this
+    # product's whole claim.
+    if not force_refresh:
+        cached = analyses.offer(account, question)
+        if cached and not cached["recommend_refresh"]:
+            return {
+                "answer": cached["answer"],
+                "cached": True,
+                "cache_note": cached["note"],
+                "matched_question": cached["original_question"],
+                "analysis_id": cached["analysis_id"],
+                "tools": [],
+                "tokens": {"in": 0, "out": 0},
+            }
+
+    turn = ask(account, question)
+    analyses.store(account, question, turn.answer,
+                   inputs={"tools": [c["name"] for c in turn.tool_calls]})
     return {
         "answer": turn.answer,
+        "cached": False,
         "tools": [c["name"] for c in turn.tool_calls],
         "read_path": turn.read_path,
         "tokens": {"in": turn.input_tokens, "out": turn.output_tokens},
@@ -100,7 +123,8 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length) or b"{}")
         client = self.headers.get("X-Forwarded-For", self.client_address[0])
-        result = answer(payload.get("question", ""), client)
+        result = answer(payload.get("question", ""), client,
+                        force_refresh=bool(payload.get("refresh")))
         self._send(200, json.dumps(result).encode(), "application/json")
 
     def log_message(self, fmt: str, *args: Any) -> None:
@@ -125,7 +149,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     if method == "POST" and path == "/ask":
         payload = json.loads(event.get("body") or "{}")
         return {"statusCode": 200, "headers": {"Content-Type": "application/json"},
-                "body": json.dumps(answer(payload.get("question", ""), source_ip))}
+                "body": json.dumps(answer(payload.get("question", ""), source_ip,
+                                          bool(payload.get("refresh"))))}
     return {"statusCode": 404, "body": "not found"}
 
 

@@ -176,9 +176,24 @@ def query_or_fallback(sql: str) -> tuple[str, str]:
             "read-only path accepts SELECT, WITH, SHOW and TABLE only; "
             f"got: {stripped[:60]}"
         )
-    with pool().connection() as conn:
-        conn.execute("SET TRANSACTION READ ONLY")
-        rows = conn.execute(stripped).fetchall()
+    import psycopg
+
+    try:
+        with pool().connection() as conn:
+            conn.execute("SET TRANSACTION READ ONLY")
+            rows = conn.execute(stripped).fetchall()
+    except psycopg.Error as exc:
+        # Hand the model a correction, not a stack trace. CockroachDB's opaque
+        # "unsupported binary operator: <jsonb> ->> <string>" means ->> was
+        # compared against a jsonb literal; without the hint the model rewrites
+        # the whole query and burns a turn guessing.
+        message = str(exc).strip().splitlines()[0]
+        if "->>" in message or "jsonb" in message.lower():
+            message += (
+                " | hint: ->> yields TEXT, so compare it to a quoted string; "
+                "use -> when you need JSONB, e.g. config->'AttachedTo' = '[]'::jsonb"
+            )
+        raise MCPError(message[:400]) from exc
     return json.dumps(rows, default=str)[:8000], "direct-readonly"
 
 
