@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from .. import graph, mcp
+from .. import cost, graph, mcp
 from ..bedrock import converse
 from ..db import pool
 from ..memory import findings, propose, store
@@ -145,6 +145,20 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "toolSpec": {
+            "name": "cost_breakdown",
+            "description": (
+                "Spend for the account joined to inventory. Granularity is "
+                "service and region, NOT per resource -- report the caveat this "
+                "returns rather than implying per-resource billing precision."
+            ),
+            "inputSchema": {"json": {
+                "type": "object",
+                "properties": {"days": {"type": "integer", "description": "Default 30"}},
+            }},
+        }
+    },
+    {
+        "toolSpec": {
             "name": "propose_relationships",
             "description": (
                 "Resource pairs that look closely related but have no known "
@@ -264,6 +278,10 @@ def _run_tool(account_id: str, name: str, args: dict[str, Any]) -> tuple[str, st
                           args.get("reason"))
         return json.dumps({"suppressed": args["finding_type"],
                            "arn": args.get("arn") or "account-wide"}), None
+
+    if name == "cost_breakdown":
+        return json.dumps(cost.attribute(account_id, args.get("days", 30)),
+                          default=str)[:12000], None
 
     if name == "propose_relationships":
         return json.dumps([
