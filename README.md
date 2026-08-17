@@ -122,16 +122,42 @@ docs/decisions/   ADRs — every non-obvious call and why
 tests/
 ```
 
+## Live demo
+
+**https://wp7s54jbd3ztuoke4xfshum2d40ocsfk.lambda-url.us-east-1.on.aws**
+
+Public, unauthenticated, running against the seeded sandbox described below.
+
 ## Status
 
-Under active development for the contest submission.
+All fourteen build phases implemented and verified against a real AWS account.
 
 | Phase | State |
 |---|---|
 | 1 — Foundation: schema, migrations, vector index | done |
-| 2 — Inventory: tiered scan, 24 collectors | done |
+| 2 — Inventory: tiered scan, 26 collectors | done |
 | 3 — The free past: CloudTrail backfill | done |
-| 4–14 — diffing, graph, memory, retrieval, manage pass | in progress |
+| 4 — Scan-over-scan diffing | done |
+| 5 — Resource graph, recursive-CTE traversal | done |
+| 6 — Memory: embeddings, merge, durability filter | done |
+| 7 — Agent read path through the MCP server | done, see caveat |
+| 8 — Chat agent, tool loop, front end | done |
+| 9 — Four-lane retrieval with RRF fusion | done |
+| 10 — Work reuse: cached analyses | done |
+| 11 — The manage pass: verification and retirement | done |
+| 12 — Human layer: suppressions, edges, proposals | done |
+| 13 — Cost attribution | done |
+| 14 — Telemetry, spend controls, deployment | done |
+
+**Caveat on Phase 7.** The MCP client authenticates and discovers tools with a
+service-account key, but the service account has not yet been granted SQL access
+to the cluster, so data-plane calls return `unauthorized`. The read path falls
+back to a direct read-only connection and reports which path served every
+answer, rather than silently pretending. See
+[docs/follow-ups.md](docs/follow-ups.md#1-grant-the-cockroachdb-service-account-sql-access--the-one-real-gap).
+
+Terraform drift analysis was scoped in and is the one agreed item that did not
+ship; the groundwork is in `seed/`.
 
 ## Running it
 
@@ -158,6 +184,12 @@ The hosted demo runs against a **seeded sandbox**, not a production account. The
 unattached Elastic IP, orphaned volumes, inconsistently named buckets, a
 security group open to the world, never-invoked functions. Everything is
 Terraform-managed so `terraform destroy` removes all of it.
+
+## Documentation
+
+- [docs/decisions/](docs/decisions/) — every non-obvious call and why
+- [docs/follow-ups.md](docs/follow-ups.md) — what still needs a human
+- `scripts/verify_*.py` — runnable acceptance checks for each phase
 
 ## License
 
