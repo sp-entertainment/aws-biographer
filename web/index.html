@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS Biographer</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --line: #263041; --text: #e6edf3;
+    --dim: #8b949e; --accent: #6ea8fe; --human: #f0a868; --ok: #58c98b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  .tag { font-size: 12px; color: var(--dim); }
+  .tag b { color: var(--ok); font-weight: 600; }
+  main { flex: 1; overflow-y: auto; padding: 20px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .msg { margin-bottom: 18px; }
+  .who { font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+         color: var(--dim); margin-bottom: 5px; }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 9px; padding: 12px 14px; white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .me .bubble { background: #1b2431; border-color: #2c3d55; }
+  .meta { font-size: 11px; color: var(--dim); margin-top: 7px; font-family: var(--mono); }
+  code, .arn { font-family: var(--mono); font-size: .9em; color: var(--accent); }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .examples button {
+    background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+    border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .examples button:hover { color: var(--text); border-color: var(--accent); }
+  footer { border-top: 1px solid var(--line); padding: 14px 20px; }
+  form { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; }
+  input {
+    flex: 1; background: var(--panel); border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 11px 13px; font-size: 15px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button.send {
+    background: var(--accent); color: #08111f; border: 0; border-radius: 8px;
+    padding: 0 20px; font-weight: 650; cursor: pointer; font-size: 14px;
+  }
+  button.send:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AWS Biographer</h1>
+  <span class="tag">Memory in CockroachDB &middot; read-only against AWS &middot; <b id="spend">&mdash;</b></span>
+</header>
+
+<main>
+  <div class="wrap" id="log">
+    <div class="msg">
+      <div class="who">biographer</div>
+      <div class="bubble">I answer questions about this AWS account from durable memory in CockroachDB, and I remember what you tell me.
+
+Every answer that names a resource carries an ARN or an identifier you can paste into the console. I cannot change anything in AWS &mdash; that boundary is in IAM, not in my prompt.
+
+This demo runs against a deliberately messy seeded account.</div>
+    </div>
+    <div class="examples">
+      <button>What EC2 instances do I have?</button>
+      <button>What looks abandoned or wasteful?</button>
+      <button>What changed recently, and who did it?</button>
+      <button>What do you know about my account?</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <form id="f">
+    <input id="q" autocomplete="off" placeholder="Ask about this AWS account, or tell me something to remember&hellip;">
+    <button class="send" id="go">Ask</button>
+  </form>
+</footer>
+
+<script>
+const log = document.getElementById('log');
+const form = document.getElementById('f');
+const box = document.getElementById('q');
+const go = document.getElementById('go');
+
+function esc(s) {
+  return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+// Identifiers are the whole point of this product, so make them visually
+// obvious rather than letting them blend into prose.
+function highlight(s) {
+  return esc(s).replace(
+    /(arn:aws[^\s`,)]+|\b(?:i|vol|sg|subnet|vpc|eipalloc|igw|rtb)-[0-9a-f]{8,17}\b)/g,
+    '<span class="arn">$1</span>'
+  );
+}
+function add(who, text, meta, cls) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + (cls || '');
+  el.innerHTML = `<div class="who">${esc(who)}</div><div class="bubble">${highlight(text)}</div>` +
+                 (meta ? `<div class="meta">${esc(meta)}</div>` : '');
+  log.appendChild(el);
+  el.scrollIntoView({behavior: 'smooth', block: 'end'});
+  return el;
+}
+
+document.querySelectorAll('.examples button').forEach(b =>
+  b.onclick = () => { box.value = b.textContent; form.requestSubmit(); });
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const question = box.value.trim();
+  if (!question) return;
+  box.value = '';
+  go.disabled = true;
+  add('you', question, null, 'me');
+  const pending = add('biographer', 'Consulting memory…');
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question})
+    });
+    const data = await res.json();
+    pending.remove();
+    if (data.error) {
+      add('biographer', data.error);
+    } else {
+      const bits = [];
+      if (data.tools && data.tools.length) bits.push('tools: ' + data.tools.join(', '));
+      if (data.read_path) bits.push('read path: ' + data.read_path);
+      if (data.tokens) bits.push(`${data.tokens.in}+${data.tokens.out} tokens`);
+      add('biographer', data.answer, bits.join('  ·  '));
+    }
+  } catch (err) {
+    pending.remove();
+    add('biographer', 'Request failed: ' + err.message);
+  } finally {
+    go.disabled = false;
+    box.focus();
+    refreshSpend();
+  }
+};
+
+async function refreshSpend() {
+  try {
+    const s = await (await fetch('/spend')).json();
+    document.getElementById('spend').textContent =
+      `$${s.total_usd.toFixed(4)} spent / ${s.calls} model calls`;
+  } catch {}
+}
+refreshSpend();
+box.focus();
+</script>
+</body>
+</html>
