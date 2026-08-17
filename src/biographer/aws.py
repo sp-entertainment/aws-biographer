@@ -98,6 +98,19 @@ def session_for(account_id: str | None = None) -> boto3.Session:
     return made
 
 
+def app_session() -> boto3.Session:
+    """The application's OWN identity, never the studied account's role.
+
+    Two different things were conflated here once and it is worth naming: the
+    read-only role exists to read someone else's account, and it is deliberately
+    incapable of anything else. Bedrock, CockroachDB, and every other thing the
+    application does for itself run as the application. Routing them through the
+    studied account's role means either an AccessDenied or -- far worse -- a
+    read-only role quietly granted powers invariant 3 says it must not have.
+    """
+    return boto3.Session(region_name=settings().aws_region)
+
+
 def client(session: boto3.Session, service: str, region: str | None = None):
     """A boto3 client carrying the scan's retry configuration."""
     return session.client(service, region_name=region, config=BOTO_CONFIG)
