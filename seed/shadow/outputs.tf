@@ -15,7 +15,7 @@ output "eip_public_ip" {
 
 output "ebs_volume_ids" {
   description = "IDs of the two unattached gp3 volumes (tagged, untagged)."
-  value       = {
+  value = {
     tagged   = aws_ebs_volume.orphaned_tagged.id
     untagged = aws_ebs_volume.orphaned_untagged.id
   }
