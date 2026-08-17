@@ -23,7 +23,9 @@ from ..aws import account_id_of, client, session_for
 from ..config import settings
 from ..db import pool
 from . import collectors as collectors_pkg
+from ..graph import store as store_edges
 from .diff import DiffResult, compute, to_rows
+from .edges import extract as extract_edges
 from .model import GLOBAL, REGISTRY, CollectorSpec, Resource
 from .regions import discover
 
@@ -53,6 +55,7 @@ class ScanResult:
     disappeared: list[str] = field(default_factory=list)
     coverage_gaps: dict[str, int] = field(default_factory=dict)
     delta: DiffResult = field(default_factory=DiffResult)
+    edges: int = 0
 
     @property
     def by_service(self) -> dict[str, int]:
@@ -274,6 +277,7 @@ def run(home_region: str | None = None) -> ScanResult:
         coverage_gaps=reconcile(session, regions, resources),
     )
     scan_id = persist(result)
+    result.edges = store_edges(account, extract_edges(resources))
     log.info("scan %s stored %d resources", scan_id, len(result.resources))
     return result
 
@@ -285,6 +289,7 @@ if __name__ == "__main__":
         print(f"\naccount   {outcome.account_id}")
         print(f"regions   {', '.join(outcome.regions)}")
         print(f"resources {len(outcome.resources)}")
+        print(f"edges     {outcome.edges}")
         for service, count in outcome.by_service.items():
             print(f"  {service:<12} {count}")
         if outcome.coverage_gaps:

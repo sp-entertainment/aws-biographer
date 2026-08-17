@@ -60,7 +60,7 @@ def log_groups(session: boto3.Session, region: str) -> Iterator[Resource]:
     client = session.client("logs", region_name=region)
     for group in paginate(client, "describe_log_groups", "logGroups"):
         yield Resource(
-            arn=group["arn"],
+            arn=group["arn"].removesuffix(":*"),
             region=region,
             service="logs",
             resource_type="log-group",

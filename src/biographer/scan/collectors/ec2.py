@@ -178,3 +178,62 @@ def subnets(session: boto3.Session, region: str) -> Iterator[Resource]:
                 }
             ),
         )
+
+
+@collector("ec2", "internet-gateway")
+def internet_gateways(session: boto3.Session, region: str) -> Iterator[Resource]:
+    ec2 = client(session, "ec2", region)
+    account = account_id_of(session)
+    for igw in paginate(ec2, "describe_internet_gateways", "InternetGateways"):
+        tags = tag_list_to_dict(igw.get("Tags"))
+        yield Resource(
+            arn=f"arn:aws:ec2:{region}:{account}:internet-gateway/{igw['InternetGatewayId']}",
+            region=region,
+            service="ec2",
+            resource_type="internet-gateway",
+            name=tags.get("Name") or igw["InternetGatewayId"],
+            tags=tags,
+            config=jsonable(
+                {
+                    "InternetGatewayId": igw["InternetGatewayId"],
+                    # Which VPCs it is attached to -- an unattached IGW is free
+                    # but is still an orphan worth reporting.
+                    "Attachments": [a.get("VpcId") for a in igw.get("Attachments", [])],
+                }
+            ),
+        )
+
+
+@collector("ec2", "route-table")
+def route_tables(session: boto3.Session, region: str) -> Iterator[Resource]:
+    ec2 = client(session, "ec2", region)
+    account = account_id_of(session)
+    for table in paginate(ec2, "describe_route_tables", "RouteTables"):
+        tags = tag_list_to_dict(table.get("Tags"))
+        yield Resource(
+            arn=f"arn:aws:ec2:{region}:{account}:route-table/{table['RouteTableId']}",
+            region=region,
+            service="ec2",
+            resource_type="route-table",
+            name=tags.get("Name") or table["RouteTableId"],
+            tags=tags,
+            config=jsonable(
+                {
+                    "RouteTableId": table["RouteTableId"],
+                    "VpcId": table.get("VpcId"),
+                    "Associations": [
+                        a.get("SubnetId")
+                        for a in table.get("Associations", [])
+                        if a.get("SubnetId")
+                    ],
+                    "Routes": [
+                        {
+                            "DestinationCidrBlock": r.get("DestinationCidrBlock"),
+                            "GatewayId": r.get("GatewayId"),
+                            "NatGatewayId": r.get("NatGatewayId"),
+                        }
+                        for r in table.get("Routes", [])
+                    ],
+                }
+            ),
+        )
