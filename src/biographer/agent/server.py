@@ -47,10 +47,11 @@ WEB_DIR = _web_dir()
 # ceiling has to sit somewhere; these are the cheapest useful ones.
 MAX_QUESTION_CHARS = 500
 RATE_LIMIT_PER_MINUTE = 10
-# A total, not a daily reset -- the name used to say "daily" and the docs had
-# to keep correcting it. Overridable by environment variable so the ceiling can
-# be raised from the Lambda console during judging without a rebuild.
-SPEND_CEILING_USD = float(os.environ.get("SPEND_CEILING_USD", "25.00"))
+# A lifetime total, not a daily reset: spend_summary() sums the whole telemetry
+# table with no date filter. The name used to say "daily" and the docs had to
+# keep correcting it. Overridable by environment variable so the ceiling can be
+# raised from the Lambda console during judging without a rebuild.
+SPEND_CEILING_USD = float(os.environ.get("SPEND_CEILING_USD", "40.00"))
 
 _hits: dict[str, list[float]] = {}
 

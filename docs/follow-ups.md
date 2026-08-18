@@ -97,7 +97,7 @@ question cap, 10 requests per minute per IP, and a $5.00 total spend ceiling tha
 returns a polite message instead of an answer once crossed.
 
 Current spend is visible at `/spend` on the demo URL and in the page header.
-**The ceiling is a total, not a daily reset** — if the demo gets traffic, raise
+**The ceiling is a lifetime total, not a daily reset** — if the demo gets traffic, raise
 it or the demo stops answering. Set `SPEND_CEILING_USD` in the chat function's
 environment to change it from the console, or edit the default in
 `src/biographer/agent/server.py` and redeploy.
