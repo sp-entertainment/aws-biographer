@@ -1,5 +1,6 @@
 """Claim evaluation. The rules that decide what retires and what does not."""
 
+import biographer.memory.verify as v
 from biographer.memory.verify import Kind, Verdict, evaluate
 
 
@@ -20,7 +21,6 @@ def test_a_missing_resource_in_an_unswept_region_is_unverifiable(monkeypatch):
 
     Without this, one partial scan retires every memory about a skipped region.
     """
-    import biographer.memory.verify as v
 
     monkeypatch.setattr(v, "_resource", lambda *a: None)
     monkeypatch.setattr(v, "_region_was_swept", lambda *a: False)
@@ -31,8 +31,6 @@ def test_a_missing_resource_in_an_unswept_region_is_unverifiable(monkeypatch):
 
 
 def test_a_missing_resource_in_a_swept_region_is_false(monkeypatch):
-    import biographer.memory.verify as v
-
     monkeypatch.setattr(v, "_resource", lambda *a: None)
     monkeypatch.setattr(v, "_region_was_swept", lambda *a: True)
     check = v.evaluate("acct", {"kind": Kind.CONFIG_ABSENT.value,
@@ -42,8 +40,6 @@ def test_a_missing_resource_in_a_swept_region_is_false(monkeypatch):
 
 
 def test_config_absent_holds_while_the_field_is_empty(monkeypatch):
-    import biographer.memory.verify as v
-
     monkeypatch.setattr(v, "_resource",
                         lambda *a: {"tags": {}, "config": {"AttachedTo": []},
                                     "region": "us-east-1", "arn": "x", "last_seen": None})
@@ -54,7 +50,6 @@ def test_config_absent_holds_while_the_field_is_empty(monkeypatch):
 
 def test_config_absent_goes_false_once_the_field_is_populated(monkeypatch):
     """This is the retirement path: the volume got attached."""
-    import biographer.memory.verify as v
 
     monkeypatch.setattr(v, "_resource",
                         lambda *a: {"tags": {}, "config": {"AttachedTo": ["i-0a"]},
@@ -67,8 +62,6 @@ def test_config_absent_goes_false_once_the_field_is_populated(monkeypatch):
 
 
 def test_untagged_claim_goes_false_when_a_tag_appears(monkeypatch):
-    import biographer.memory.verify as v
-
     monkeypatch.setattr(v, "_resource",
                         lambda *a: {"tags": {"Owner": "platform"}, "config": {},
                                     "region": "us-east-1", "arn": "x", "last_seen": None})

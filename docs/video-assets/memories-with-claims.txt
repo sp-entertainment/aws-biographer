@@ -1,0 +1,10 @@
+topic                          | origin | claim
+-------------------------------+--------+------------------------------------------------------------
+build-runner                   | human  | null
+build-runner#unmerged-588f8ba2 | human  | null
+idle-eip                       | agent  | {"check": "ec2.describe_addresses", "expect": "AssociationId is null"}
+orphaned-volume-biographer-sha | agent  | {"arn": "arn:aws:ec2:us-east-1:111122223333:volume/vol-0ccf11a8b75598a
+orphaned-volume-vol-0589524a14 | agent  | {"arn": "arn:aws:ec2:us-east-1:111122223333:volume/vol-0589524a14f51a8
+unattached-eip-biographer-shad | agent  | {"arn": "arn:aws:ec2:us-east-1:111122223333:elastic-ip/eipalloc-06afac
+untagged-backups-biographer-se | agent  | {"arn": "arn:aws:s3:::backups-biographer-seed-2024-111122223333", "fin
+untagged-biographer-seed-asset | agent  | {"arn": "arn:aws:s3:::biographer-seed-assets-prod-111122223333", "find

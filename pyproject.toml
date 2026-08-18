@@ -2,12 +2,26 @@
 name = "biographer"
 version = "0.1.0"
 description = "An AWS account agent with verifiable, durable memory in CockroachDB"
+readme = "README.md"
 requires-python = ">=3.13"
+authors = [{ name = "Stone Pack Entertainment LLC" }]
+keywords = ["aws", "cockroachdb", "agent", "memory", "bedrock", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+]
 dependencies = [
     "boto3>=1.35",
     "botocore[crt]>=1.35",
     "psycopg[binary,pool]>=3.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sp-entertainment/aws-biographer"
+Source = "https://github.com/sp-entertainment/aws-biographer"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "python-dotenv>=1.0"]

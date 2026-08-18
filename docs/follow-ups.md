@@ -167,5 +167,5 @@ python scripts/verify_memory.py && python scripts/verify_cache.py && python scri
 Redeploy after any code change. The `--app` override pins the interpreter: `python` on this machine can resolve to the Windows Store stub, which has no `aws_cdk` installed and fails with `ModuleNotFoundError`. It stays out of `cdk.json` because that path is machine specific and the repo is public.
 
 ```bash
-python scripts/build_lambda.py && cd infra && AWS_PROFILE=seed CDK_DEFAULT_ACCOUNT=111122223333 CDK_DEFAULT_REGION=us-east-1 npx aws-cdk@latest deploy --app "C:/Python314/python.exe app.py" --require-approval never
+python scripts/build_lambda.py && cd infra && AWS_PROFILE=seed CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text) CDK_DEFAULT_REGION=us-east-1 npx aws-cdk@latest deploy --app "C:/Python314/python.exe app.py" --require-approval never
 ```

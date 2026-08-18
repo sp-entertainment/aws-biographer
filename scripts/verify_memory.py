@@ -8,17 +8,18 @@ Run:  python scripts/verify_memory.py
 
 import sys
 
-import sys
-
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 load_dotenv()
+from biographer.agent.loop import default_account
 from biographer.db import pool
 from biographer.memory import store
 from biographer.bedrock import spend_summary
 
-A = sys.argv[1] if len(sys.argv) > 1 else "111122223333"
+# No hardcoded account. The default is whatever has actually been scanned,
+# so this never runs against an account the operator did not expect.
+A = sys.argv[1] if len(sys.argv) > 1 else default_account()
 FIXTURE_TOPICS = ["build-runner", "chatter", "idle-eip"]
 try:
     with pool().connection() as c:

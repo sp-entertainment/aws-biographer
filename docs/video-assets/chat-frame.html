@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>AWS Biographer &mdash; captured conversation</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --line: #263041; --text: #e6edf3;
+    --dim: #8b949e; --accent: #6ea8fe; --human: #f0a868; --ok: #58c98b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  .tag { font-size: 12px; color: var(--dim); }
+  .tag b { color: var(--ok); font-weight: 600; }
+  main { flex: 1; overflow-y: auto; padding: 20px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .msg { margin-bottom: 18px; }
+  .who { font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+         color: var(--dim); margin-bottom: 5px; }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 9px; padding: 12px 14px; white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .me .bubble { background: #1b2431; border-color: #2c3d55; }
+  .meta { font-size: 11px; color: var(--dim); margin-top: 7px; font-family: var(--mono); }
+  code, .arn { font-family: var(--mono); font-size: .9em; color: var(--accent); }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .examples button {
+    background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+    border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .examples button:hover { color: var(--text); border-color: var(--accent); }
+  footer { border-top: 1px solid var(--line); padding: 14px 20px; }
+  form { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; }
+  input {
+    flex: 1; background: var(--panel); border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 11px 13px; font-size: 15px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button.send {
+    background: var(--accent); color: #08111f; border: 0; border-radius: 8px;
+    padding: 0 20px; font-weight: 650; cursor: pointer; font-size: 14px;
+  }
+  button.send:disabled { opacity: .5; cursor: default; }
+
+  body { height: auto; }
+  main { overflow: visible; }
+</style></head><body>
+<header>
+  <h1>AWS Biographer</h1>
+  <span class="tag">Memory in CockroachDB &middot; read-only against AWS &middot; <b>$2.15 spent</b></span>
+</header>
+<main><div class="wrap">
+<div class="msg me"><div class="who">you</div><div class="bubble">What looks abandoned or wasteful in my account?</div></div>
+<div class="msg"><div class="who">biographer</div><div class="bubble">Here's what looks abandoned or wasteful in your account:
+
+<b><b>Unattached Elastic IP</b> (costs ~$3.60/month)</b>
+- <b><span class="arn">eipalloc-06afacf4141ed7de7</span></b> (`biographer-shadow-orphaned-eip`) - IP 44.209.43.135 in us-east-1
+  - Not associated with any instance or network interface
+
+<b><b>Orphaned EBS Volumes</b> (costs ~$0.24/month total)</b>
+- <b><span class="arn">vol-0ccf11a8b75598a77</span></b> (`biographer-shadow-orphaned-vol-tagged`) - 1 GB gp3 in us-east-1
+  - State: available, created Aug 17, 2026
+- <b><span class="arn">vol-0589524a14f51a8f9</span></b> - 1 GB gp3 in us-east-1
+  - State: available, created Aug 17, 2026
+
+<b><b>Log Group Without Retention Policy</b> (grows unbounded)</b>
+- <b>/biographer-seed/app</b> in us-east-1
+  - No retention policy set - logs will accumulate indefinitely
+  - Currently storing 0 bytes
+
+The unattached Elastic IP is the most wasteful since AWS charges for unassociated EIPs. The volumes are small (1 GB each) so minimal cost, but still unnecessary if not needed. The log group without retention will grow over time and should have a policy set (e.g., 7, 30, or 90 days).</div><div class="meta">read_path: mcp &middot; tools: search_memory, run_sql &middot; 9302 in / 687 out</div></div>
+<div class="msg me"><div class="who">you</div><div class="bubble">What do you know about my account?</div></div>
+<div class="msg"><div class="who">biographer</div><div class="bubble">Here's what I know about your account:
+
+<b>Account ID:</b> 111122223333
+
+<b>Inventory:</b> 55 resources across 8 services, all in us-east-1:
+- 23 EC2 resources (instances, volumes, security groups, elastic IPs)
+- 16 IAM resources
+- 6 S3 buckets
+- 4 Lambda functions
+- 3 CloudWatch Logs groups
+- 1 each: SNS topic, DynamoDB table, SQS queue
+
+<b>What you've told me (human memories):</b>
+1. <b>Instance <span class="arn">i-0ad130ebd061c9a6f</span></b> runs nightly CI builds and must not be terminated. You mentioned it was decommissioned and replaced by a Graviton runner in June.
+
+<b>Issues I've detected (agent memories):</b>
+- <b>Unattached Elastic IP:</b> <span class="arn">eipalloc-06afacf4141ed7de7</span> (biographer-shadow-orphaned-eip) - billing hourly
+- <b>Orphaned EBS volumes:</b> 
+  - <span class="arn">vol-0ccf11a8b75598a77</span> (biographer-shadow-orphaned-vol-tagged) - 1 GiB gp3
+  - <span class="arn">vol-0589524a14f51a8f9</span> - 1 GiB gp3
+- <b>World-open security groups:</b>
+  - <span class="arn">sg-0e7286bc6a5be6f58</span> (biographer-shadow-rdp-open) - RDP port 3389 open to 0.0.0.0/0
+  - <span class="arn">sg-05f7fb5e84f45e2ff</span> (biographer-seed-web) - SSH port 22 open to 0.0.0.0/0
+- <b>Untagged S3 buckets:</b> 5 buckets with no tags (biographer-shadow-bluefinch, biographer-shadow-logs-2019-11-04, biographer-shadow-staging-assets, biographer-seed-assets-prod, backups-biographer-seed-2024)
+
+All findings date from 17 August or earlier. Would you like me to investigate any specific area, or help you address these issues?</div><div class="meta">read_path: mcp &middot; tools: search_memory, run_sql, run_sql &middot; 11346 in / 823 out</div></div>
+</div></main>
+<footer><form><input value="" placeholder="Ask about this AWS account, or tell me something to remember&hellip;" readonly><button class="send">Ask</button></form></footer>
+</body></html>

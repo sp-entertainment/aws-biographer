@@ -37,3 +37,6 @@ Thumbs.db
 build/
 infra/cdk.out/
 node_modules/
+
+# Personal agent tooling, not part of the submission
+.claude/

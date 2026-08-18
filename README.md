@@ -12,6 +12,22 @@ visibly, without being asked.
 
 Built for the CockroachDB × AWS **Build with Agentic Memory** contest.
 
+## Try it
+
+**https://wp7s54jbd3ztuoke4xfshum2d40ocsfk.lambda-url.us-east-1.on.aws**
+
+Public, no signup, running against the seeded sandbox account described below.
+Nothing to install. Ask it:
+
+- *"What looks abandoned or wasteful in my account?"*
+- *"What do you know about my account?"*
+- *"What breaks if I delete the build runner?"*
+- *"Has anything you believed stopped being true?"*
+
+Answers cite real identifiers you can paste into the AWS console, and each one
+reports which path served it — `read_path: mcp` means the agent composed its own
+SQL and ran it through CockroachDB's Managed MCP Server.
+
 ---
 
 ## What it does
@@ -166,12 +182,6 @@ docs/decisions/   ADRs — every non-obvious call and why
 tests/
 ```
 
-## Live demo
-
-**https://wp7s54jbd3ztuoke4xfshum2d40ocsfk.lambda-url.us-east-1.on.aws**
-
-Public, unauthenticated, running against the seeded sandbox described below.
-
 ## Status
 
 All fourteen build phases implemented and verified against a real AWS account.
@@ -184,7 +194,7 @@ All fourteen build phases implemented and verified against a real AWS account.
 | 4 — Scan-over-scan diffing | done |
 | 5 — Resource graph, recursive-CTE traversal | done |
 | 6 — Memory: embeddings, merge, durability filter | done |
-| 7 — Agent read path through the MCP server | done, see caveat |
+| 7 — Agent read path through the MCP server | done |
 | 8 — Chat agent, tool loop, front end | done |
 | 9 — Four-lane retrieval with RRF fusion | done |
 | 10 — Work reuse: cached analyses | done |
@@ -204,19 +214,107 @@ reading through MCP.
 Terraform drift analysis was scoped in and is the one agreed item that did not
 ship; the groundwork is in `seed/`.
 
-## Running it
+## Running it locally
 
-Requires Python 3.13, a CockroachDB cluster, and AWS credentials for a
-**non-root** principal that can assume the read-only role.
+**You need:** Python 3.13, a CockroachDB cluster (the free Basic tier is
+enough), Amazon Bedrock model access, and AWS credentials for a **non-root**
+principal — AWS forbids root from assuming roles, so the read-only boundary
+cannot be exercised without one.
+
+### 1. Set up the read-only role
+
+In the account you want to study, create an IAM role that trusts your principal
+and requires an external ID, with `ReadOnlyAccess` and `SecurityAudit`
+attached. Nothing else. That role is the only way in, and it cannot write.
+
+### 2. Install and configure
 
 ```bash
 pip install -e ".[dev]"
-cp .env.example .env   # fill in DATABASE_URL and the role settings
-python -m biographer.db          # apply migrations, verify the vector index
-python -m biographer.scan.runner # inventory the account
-python -m biographer.scan.cloudtrail  # backfill the free 90-day past
-pytest
+cp .env.example .env
 ```
+
+Fill in `DATABASE_URL`, `BIOGRAPHER_ROLE_ARN`, `BIOGRAPHER_EXTERNAL_ID`, and
+the two `CRDB_*` values from a CockroachDB Cloud service account. Every entry
+point loads `.env` automatically.
+
+### 3. Build the memory
+
+```bash
+python -m biographer.db              # apply migrations, verify the vector index
+python -m biographer.scan.runner     # inventory the account
+python -m biographer.scan.cloudtrail # backfill the free 90-day past
+python -m biographer.manage          # findings, verification, retirement
+```
+
+### 4. Chat with it
+
+```bash
+python -m biographer.agent.server
+```
+
+Serves the same UI as the hosted demo on `http://localhost:8080`.
+
+```bash
+pytest                               # 38 unit tests, no cloud access needed
+python scripts/verify_memory.py      # acceptance checks, needs the cluster
+```
+
+---
+
+## Deploying your own copy
+
+Two Lambdas, one scheduler rule, no servers to keep alive. Roughly ten minutes.
+
+### 1. Put the secrets where the Lambdas can reach them
+
+```bash
+python scripts/put_secrets.py
+```
+
+Reads `.env` in-process and writes to Secrets Manager under a dedicated KMS
+key. Values are never printed, never passed on a command line, and never read
+back. The functions receive them at runtime as CloudFormation dynamic
+references, so they never appear in a template, a stack parameter, or a
+deployment log either.
+
+### 2. Build the deployment package
+
+```bash
+python scripts/build_lambda.py
+```
+
+Cross-compiles Linux wheels with pip's `--platform` flag, so no Docker is
+needed. `boto3` is excluded because the Lambda runtime already ships it.
+
+### 3. Deploy
+
+```bash
+cd infra && npx aws-cdk@latest deploy --require-approval never
+```
+
+Set `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` first if your shell does not
+already have them. The stack outputs the chat Function URL.
+
+### What you get
+
+| Resource | Purpose |
+|---|---|
+| Chat Lambda + Function URL | the public demo, 1024 MB, 120s timeout |
+| Manage Lambda + EventBridge Scheduler | hourly scan, verification, retirement |
+| Secrets Manager secret + KMS key | configuration, never in the template |
+| CloudWatch log groups | with retention set |
+
+### Before you point it at anything real
+
+- **Raise `FINDING_MIN_AGE_MINUTES`.** The default of 30 is tuned for a
+  freshly seeded demo; hours or days is right for a live account.
+- **Set a spend ceiling you can live with.** `DAILY_SPEND_CEILING_USD` in
+  `src/biographer/agent/server.py` is a *total*, not a daily reset. Past it,
+  the demo returns a polite message instead of an answer.
+- **Decide whether the Function URL should stay public.** It is unauthenticated
+  by design here, with a 500-character question cap and 10 requests per minute
+  per IP as the only gate.
 
 `.env` is git-ignored and must stay that way. The read-only role's ARN is
 deliberately absent from this repository — a published assumable role ARN is an
@@ -232,9 +330,11 @@ Terraform-managed so `terraform destroy` removes all of it.
 
 ## Documentation
 
-- [docs/decisions/](docs/decisions/) — every non-obvious call and why
-- [docs/follow-ups.md](docs/follow-ups.md) — what still needs a human
-- `scripts/verify_*.py` — runnable acceptance checks for each phase
+- [docs/decisions/](docs/decisions/) — every non-obvious call and why, as ADRs
+- [docs/follow-ups.md](docs/follow-ups.md) — known gaps and what still needs a human
+- [docs/design-summary.md](docs/design-summary.md) — the full design, section by section
+- [CONTRIBUTING.md](CONTRIBUTING.md) — this repo does not accept pull requests, and why
+- `scripts/verify_*.py` — runnable acceptance checks, one per phase
 
 ## License
 

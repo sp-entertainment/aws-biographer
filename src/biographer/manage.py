@@ -93,6 +93,27 @@ def run(*, force_findings: bool = False, backfill_history: bool = False) -> Mana
     return result
 
 
+def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    """EventBridge Scheduler entry point."""
+    outcome = run(
+        force_findings=bool(event.get("force_findings")),
+        backfill_history=bool(event.get("backfill")),
+    )
+    v = outcome.verification
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "account_id": outcome.account_id,
+            "resources": outcome.resources,
+            "changes": outcome.changes,
+            "findings": outcome.findings,
+            "verified": v.checked if v else 0,
+            "retired": v.retired if v else 0,
+            "woke_the_model": outcome.woke_the_model,
+        }),
+    }
+
+
 if __name__ == "__main__":
     import sys
 
@@ -114,24 +135,3 @@ if __name__ == "__main__":
                 print(f"      why: {item['reason']}")
     finally:
         pool().close()
-
-
-def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    """EventBridge Scheduler entry point."""
-    outcome = run(
-        force_findings=bool(event.get("force_findings")),
-        backfill_history=bool(event.get("backfill")),
-    )
-    v = outcome.verification
-    return {
-        "statusCode": 200,
-        "body": json.dumps({
-            "account_id": outcome.account_id,
-            "resources": outcome.resources,
-            "changes": outcome.changes,
-            "findings": outcome.findings,
-            "verified": v.checked if v else 0,
-            "retired": v.retired if v else 0,
-            "woke_the_model": outcome.woke_the_model,
-        }),
-    }
