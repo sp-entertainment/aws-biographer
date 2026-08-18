@@ -98,8 +98,9 @@ returns a polite message instead of an answer once crossed.
 
 Current spend is visible at `/spend` on the demo URL and in the page header.
 **The ceiling is a total, not a daily reset** — if the demo gets traffic, raise
-`DAILY_SPEND_CEILING_USD` in `src/biographer/agent/server.py` and redeploy, or it
-will stop answering.
+it or the demo stops answering. Set `SPEND_CEILING_USD` in the chat function's
+environment to change it from the console, or edit the default in
+`src/biographer/agent/server.py` and redeploy.
 
 ### 7. Rotate the credentials that passed through a chat transcript
 

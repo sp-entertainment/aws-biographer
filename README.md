@@ -317,9 +317,11 @@ already have them. The stack outputs the chat Function URL.
 
 - **Raise `FINDING_MIN_AGE_MINUTES`.** The default of 30 is tuned for a
   freshly seeded demo; hours or days is right for a live account.
-- **Set a spend ceiling you can live with.** `DAILY_SPEND_CEILING_USD` in
-  `src/biographer/agent/server.py` is a *total*, not a daily reset. Past it,
-  the demo returns a polite message instead of an answer.
+- **Set a spend ceiling you can live with.** `SPEND_CEILING_USD` in
+  `src/biographer/agent/server.py` defaults to $25 and is a *total*, not a
+  daily reset. Past it, the demo returns a polite message instead of an
+  answer. Set `SPEND_CEILING_USD` in the function's environment to change it
+  without redeploying.
 - **Decide whether the Function URL should stay public.** It is unauthenticated
   by design here, with a 500-character question cap and 10 requests per minute
   per IP as the only gate.

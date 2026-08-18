@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pathlib
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -46,7 +47,10 @@ WEB_DIR = _web_dir()
 # ceiling has to sit somewhere; these are the cheapest useful ones.
 MAX_QUESTION_CHARS = 500
 RATE_LIMIT_PER_MINUTE = 10
-DAILY_SPEND_CEILING_USD = 5.00
+# A total, not a daily reset -- the name used to say "daily" and the docs had
+# to keep correcting it. Overridable by environment variable so the ceiling can
+# be raised from the Lambda console during judging without a rebuild.
+SPEND_CEILING_USD = float(os.environ.get("SPEND_CEILING_USD", "25.00"))
 
 _hits: dict[str, list[float]] = {}
 
@@ -72,7 +76,7 @@ def _rate_limited(client: str) -> bool:
 
 def _over_budget() -> bool:
     try:
-        return spend_summary()["total_usd"] >= DAILY_SPEND_CEILING_USD
+        return spend_summary()["total_usd"] >= SPEND_CEILING_USD
     except Exception:  # noqa: BLE001
         # A telemetry outage must not become an outage of the whole demo.
         return False
