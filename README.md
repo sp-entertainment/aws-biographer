@@ -1,5 +1,8 @@
 # AWS Biographer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+
 **Every comparable AWS tool is a stateless snapshot. This one remembers — and its memory checks itself.**
 
 Staleness is the unsolved problem in agent memory, because facts about people
@@ -10,7 +13,7 @@ visibly, without being asked.
 
 > AWS forgets after 90 days. The agent doesn't.
 
-Built for the CockroachDB × AWS **Build with Agentic Memory** contest.
+Built for the CockroachDB × AWS [**Build with Agentic Memory**](https://cockroachdb-ai.devpost.com/) contest.
 
 ## Try it
 
@@ -22,11 +25,16 @@ Nothing to install. Ask it:
 - *"What looks abandoned or wasteful in my account?"*
 - *"What do you know about my account?"*
 - *"What breaks if I delete the build runner?"*
-- *"Has anything you believed stopped being true?"*
+- *"What changed recently, and who did it?"*
 
 Answers cite real identifiers you can paste into the AWS console, and each one
 reports which path served it — `read_path: mcp` means the agent composed its own
 SQL and ran it through CockroachDB's Managed MCP Server.
+
+You can also tell it things (*"that untagged instance is the build runner"*),
+and it will still know on your next visit. Ask *"has anything you believed
+stopped being true?"* to see the retirement record — empty until something in
+the account changes under it, which is exactly the point.
 
 ---
 
