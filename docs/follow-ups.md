@@ -6,31 +6,25 @@ Everything below needs a human. Ordered by whether it blocks the submission.
 
 ## Blocking the submission
 
-### 1. Grant the CockroachDB service account SQL access — **the one real gap**
+### 1. ~~Grant the CockroachDB service account SQL access~~ — RESOLVED 17 Aug 2026
 
-The Managed MCP Server authenticates fine with the service account key: the
-handshake and tool discovery both succeed. But every data-plane tool
-(`select_query`, `list_tables`, `get_table_schema`, `show_statement`) returns
-`unauthorized`. The service account can reach the Cloud API and cannot reach the
-cluster's SQL layer.
+Done. A cluster-scoped Cloud RBAC role was added to the service account in
+Access Management, and the MCP read path came up immediately with no code change
+and no redeploy.
 
-**Why it matters:** the submission claims Managed MCP Server as one of its two
-CockroachDB tools, and "the agent reads through MCP" is an architectural claim in
-the README. Right now the agent falls back to a direct read-only connection and
-says so on every answer (`read_path: direct-readonly`). That is honest, but it is
-not the claim.
+The diagnosis in the original write-up was wrong in a useful way. It read as a
+SQL-layer gap, but the same key against `GET /api/v1/clusters` returned an empty
+list — the account authenticated and could see no clusters at all. Managed MCP
+runs a Cloud RBAC check before every tool invocation, so `select_query` was
+failing at that check and never reaching SQL. One role assignment cleared both
+layers at once.
 
-**Fix:** CockroachDB Cloud Console → Access Management → Service Accounts →
-the account whose key is in `.env` → give it a role with SQL access to the
-`biographer` cluster (Cluster Admin, or whatever the console offers that includes
-SQL). No code change is needed — `mcp.available()` re-probes and the read path
-flips back to MCP by itself.
+Verified end to end: `python -m biographer.mcp` reports `query_ok: True`, and
+the deployed demo now answers with `read_path: mcp`.
 
-**Verify:** `python -m biographer.mcp` should print `query_ok: True`.
-
-Note the second CockroachDB tool, Distributed Vector Indexing, is confirmed
-working on Basic, so the two-tool requirement is met either way. This is about
-the strength of the claim, not its existence.
+The direct read-only fallback stays in place. It is not scaffolding for a gap
+that no longer exists — it is what keeps the product answering, and saying so,
+if the grant is ever revoked.
 
 ### 2. Devpost submission
 

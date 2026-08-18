@@ -149,12 +149,12 @@ All fourteen build phases implemented and verified against a real AWS account.
 | 13 — Cost attribution | done |
 | 14 — Telemetry, spend controls, deployment | done |
 
-**Caveat on Phase 7.** The MCP client authenticates and discovers tools with a
-service-account key, but the service account has not yet been granted SQL access
-to the cluster, so data-plane calls return `unauthorized`. The read path falls
-back to a direct read-only connection and reports which path served every
-answer, rather than silently pretending. See
-[docs/follow-ups.md](docs/follow-ups.md#1-grant-the-cockroachdb-service-account-sql-access--the-one-real-gap).
+**Note on Phase 7.** The agent reads through the Managed MCP Server with a
+service-account key, and every answer reports which path served it
+(`read_path: mcp`). A direct read-only connection remains as an announced
+fallback: if the service account ever loses its Cloud RBAC grant, the product
+keeps answering and says so, rather than silently pretending it is still
+reading through MCP.
 
 Terraform drift analysis was scoped in and is the one agreed item that did not
 ship; the groundwork is in `seed/`.
