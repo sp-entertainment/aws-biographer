@@ -3,8 +3,21 @@
 from __future__ import annotations
 
 import os
+import pathlib
 from dataclasses import dataclass
 from functools import lru_cache
+
+# Load the repo's .env here rather than in each entry point. Every `python -m
+# biographer.<module>` command otherwise needs the environment exported first,
+# which is a trap for anyone following the README -- and it silently broke the
+# documented demo script. In Lambda the file does not exist and this no-ops,
+# because real environment variables are already set and always win.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(pathlib.Path(__file__).resolve().parents[2] / ".env")
+except ImportError:  # pragma: no cover - python-dotenv is a dev dependency
+    pass
 
 
 class ConfigError(RuntimeError):
