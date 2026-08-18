@@ -54,9 +54,14 @@ _hits: dict[str, list[float]] = {}
 def _rate_limited(client: str) -> bool:
     """Fixed-window per-IP limiter.
 
-    ponytail: in-process counter, fine for one Lambda with reserved concurrency.
-    Move to a CockroachDB table if the demo ever runs more than one instance --
-    an in-process counter across N instances is really a limit of N times this.
+    The counter is in-process, and this function has no reserved concurrency
+    (see infra/app.py -- the account's total limit is 10, and reserving any of
+    it drops the unreserved pool below the minimum AWS allows). So the real
+    ceiling is this limit times the number of live instances, up to ten. That
+    is loose on purpose: the spend ceiling below is the control that actually
+    bounds cost, and this one only stops a single client hammering the demo.
+
+    ponytail: move to a CockroachDB table if a true global limit is ever needed.
     """
     now = time.time()
     window = [t for t in _hits.get(client, []) if now - t < 60]
