@@ -25,6 +25,9 @@ Everything this script needs is already captured in
 - Narration can be text-to-speech. Keep it level and unhurried.
 - On-screen text should be large enough to read on a phone.
 - Do not show `.env`, any API key, or the read-only role ARN at any point.
+- The AWS account id in every asset is redacted to `111122223333`, AWS's own
+  documentation placeholder. Keep it that way. If you re-record anything
+  against the live demo, redact the account id again before publishing.
 
 ---
 
