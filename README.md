@@ -89,22 +89,66 @@ relationship; only a human confirms one.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph AWSACC["Studied AWS account (read-only)"]
+        APIS["Service APIs<br/>EC2 - S3 - IAM - Lambda - Logs - SNS - SQS - DDB"]
+        CT["CloudTrail<br/>write events only"]
+        CE["Cost Explorer"]
+    end
+
+    subgraph INGEST["Manage pass - EventBridge Scheduler, hourly"]
+        SCAN["Scan<br/>3-signal region tiering<br/>best-effort collectors"]
+        DIFF["Diff<br/>volatile fields ignored"]
+        FIND["Findings<br/>observation to memory + claim"]
+        VER["Verify<br/>re-check every claim<br/>holds / false / unverifiable"]
+        EMB["Embed + propose<br/>candidate edges"]
+    end
+
+    subgraph CRDB["CockroachDB Basic"]
+        TABLES["resources - changes - edges<br/>memories - analyses<br/>suppressions - scans - telemetry"]
+        VEC["VECTOR(1024) cosine index<br/>account-id prefixed"]
+    end
+
+    subgraph SERVE["Chat - Lambda Function URL, public"]
+        UI["Web UI"]
+        LOOP["Agent loop<br/>Bedrock Converse, 8 tools, max 6 turns"]
+        RET["Retrieval<br/>identifier - structured - graph - vector<br/>fused by RRF"]
+    end
+
+    BR["Amazon Bedrock<br/>Sonnet 4.5 reasoning<br/>Haiku 4.5 merges + durability<br/>Titan v2 embeddings"]
+
+    APIS -->|AssumeRole<br/>ReadOnlyAccess + SecurityAudit| SCAN
+    CT --> SCAN
+    CE -->|cost_breakdown tool| LOOP
+    SCAN --> DIFF --> FIND --> VER --> EMB
+    INGEST -->|psycopg, deterministic writes| TABLES
+    VER -.->|retire, never delete| TABLES
+
+    UI --> LOOP
+    LOOP <--> BR
+    LOOP --> RET
+    RET -->|Managed MCP Server<br/>agent-composed SQL| TABLES
+    RET -.->|announced fallback<br/>read_path direct-readonly| TABLES
+    TABLES --- VEC
+    INGEST <--> BR
+
+    classDef store fill:#1c3d5a,stroke:#4a90d9,color:#fff
+    class TABLES,VEC store
 ```
-chat front end
-      │
-chat backend ──── Bedrock (strong model for reasoning, cheap model for merges)
-      │
-      ├── reads  ──→ CockroachDB Managed MCP Server   (agent writes its own SQL)
-      └── writes ──→ CockroachDB via psycopg          (deterministic code)
-                             ▲
-scheduled scan + manage pass ┘   (inventory, diffing, verification, retirement)
-```
+
+**Read and write paths are split on purpose.** The agent reads through the
+Managed MCP Server, composing its own SQL. The application writes through
+psycopg, because writes are deterministic code and no model needs to compose an
+INSERT. `insert_rows` is deliberately absent from the agent's tool surface.
 
 **CockroachDB tools used:** Managed MCP Server (the agent's read path),
-Distributed Vector Indexing (memory and cached-analysis embeddings).
+Distributed Vector Indexing (memory and cached-analysis embeddings,
+`VECTOR(1024)`, cosine, account-prefixed).
 
-**AWS services used:** Bedrock, Lambda, EventBridge Scheduler, IAM, plus the
-read-only APIs of every service it inventories.
+**AWS services used:** Bedrock, Lambda, EventBridge Scheduler, IAM, KMS, Secrets
+Manager, CloudWatch Logs, plus the read-only APIs of every service it
+inventories.
 
 ## Repository layout
 
