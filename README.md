@@ -147,6 +147,12 @@ Managed MCP Server, composing its own SQL. The application writes through
 psycopg, because writes are deterministic code and no model needs to compose an
 INSERT. `insert_rows` is deliberately absent from the agent's tool surface.
 
+Every answer that runs agent-composed SQL reports which path served it
+(`read_path: mcp`); answers that need no SQL report none. A direct read-only
+connection stays in place as an announced fallback, so if the service account
+ever loses its Cloud RBAC grant the product keeps answering and says so,
+rather than silently pretending it is still reading through MCP.
+
 **CockroachDB tools used:** Managed MCP Server (the agent's read path),
 Distributed Vector Indexing (memory and cached-analysis embeddings,
 `VECTOR(1024)`, cosine, account-prefixed).
@@ -170,38 +176,6 @@ seed/             Terraform that builds the demo account's deliberate mess
 docs/decisions/   ADRs — every non-obvious call and why
 tests/
 ```
-
-## Status
-
-All fourteen build phases implemented and verified against a real AWS account.
-
-| Phase | State |
-|---|---|
-| 1 — Foundation: schema, migrations, vector index | done |
-| 2 — Inventory: tiered scan, 26 collectors | done |
-| 3 — The free past: CloudTrail backfill | done |
-| 4 — Scan-over-scan diffing | done |
-| 5 — Resource graph, recursive-CTE traversal | done |
-| 6 — Memory: embeddings, merge, durability filter | done |
-| 7 — Agent read path through the MCP server | done |
-| 8 — Chat agent, tool loop, front end | done |
-| 9 — Four-lane retrieval with RRF fusion | done |
-| 10 — Work reuse: cached analyses | done |
-| 11 — The manage pass: verification and retirement | done |
-| 12 — Human layer: suppressions, edges, proposals | done |
-| 13 — Cost attribution | done |
-| 14 — Telemetry, spend controls, deployment | done |
-
-**Note on Phase 7.** The agent reads through the Managed MCP Server with a
-service-account key. Any answer that runs agent-composed SQL reports which
-path served it (`read_path: mcp`); answers that need no SQL report none.
-A direct read-only connection remains as an announced
-fallback: if the service account ever loses its Cloud RBAC grant, the product
-keeps answering and says so, rather than silently pretending it is still
-reading through MCP.
-
-Terraform drift analysis was scoped in and is the one agreed item that did not
-ship; the groundwork is in `seed/`.
 
 ## Running it locally
 
@@ -325,7 +299,7 @@ Terraform-managed so `terraform destroy` removes all of it.
 - [docs/follow-ups.md](docs/follow-ups.md) — known gaps and what still needs a human
 - [docs/design-summary.md](docs/design-summary.md) — the full design, section by section
 - [CONTRIBUTING.md](CONTRIBUTING.md) — this repo does not accept pull requests, and why
-- `scripts/verify_*.py` — runnable acceptance checks, one per phase
+- `scripts/verify_*.py` — runnable acceptance checks for the memory layer
 
 ## License
 
