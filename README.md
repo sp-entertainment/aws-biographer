@@ -150,8 +150,9 @@ All fourteen build phases implemented and verified against a real AWS account.
 | 14 — Telemetry, spend controls, deployment | done |
 
 **Note on Phase 7.** The agent reads through the Managed MCP Server with a
-service-account key, and every answer reports which path served it
-(`read_path: mcp`). A direct read-only connection remains as an announced
+service-account key. Any answer that runs agent-composed SQL reports which
+path served it (`read_path: mcp`); answers that need no SQL report none.
+A direct read-only connection remains as an announced
 fallback: if the service account ever loses its Cloud RBAC grant, the product
 keeps answering and says so, rather than silently pretending it is still
 reading through MCP.

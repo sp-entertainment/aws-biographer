@@ -19,9 +19,16 @@ from biographer.memory import store
 from biographer.bedrock import spend_summary
 
 A = sys.argv[1] if len(sys.argv) > 1 else "111122223333"
+FIXTURE_TOPICS = ["build-runner", "chatter", "idle-eip"]
 try:
     with pool().connection() as c:
-        c.execute("DELETE FROM memories WHERE account_id=%s", (A,)); c.commit()
+        # Scoped to this script's own fixture topics. It used to wipe the
+        # account, which destroyed real retired memories the first time it was
+        # pointed at a live account -- and retirement records are the one thing
+        # here that cannot be recomputed from a scan.
+        c.execute("DELETE FROM memories WHERE account_id=%s"
+                  " AND (topic = ANY(%s) OR topic LIKE 'build-runner#unmerged-%%')",
+                  (A, FIXTURE_TOPICS)); c.commit()
 
     print("=== 1. explicit 'remember this' bypasses the filter ===")
     # Deliberately transient wording the durability filter would normally DROP.
