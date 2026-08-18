@@ -17,27 +17,6 @@ visibly, without being asked.
 
 Built for the CockroachDB × AWS [**Build with Agentic Memory**](https://cockroachdb-ai.devpost.com/) contest.
 
-## Try it
-
-**https://wp7s54jbd3ztuoke4xfshum2d40ocsfk.lambda-url.us-east-1.on.aws**
-
-Public, no signup, running against the seeded sandbox account described below.
-Nothing to install. Ask it:
-
-- *"What looks abandoned or wasteful in my account?"*
-- *"What do you know about my account?"*
-- *"What breaks if I delete the build runner?"*
-- *"What changed recently, and who did it?"*
-
-Answers cite real identifiers you can paste into the AWS console, and each one
-reports which path served it — `read_path: mcp` means the agent composed its own
-SQL and ran it through CockroachDB's Managed MCP Server.
-
-You can also tell it things (*"that untagged instance is the build runner"*),
-and it will still know on your next visit. Ask *"has anything you believed
-stopped being true?"* to see the retirement record — empty until something in
-the account changes under it, which is exactly the point.
-
 ---
 
 ## What it does
@@ -263,7 +242,7 @@ python -m biographer.manage          # findings, verification, retirement
 python -m biographer.agent.server
 ```
 
-Serves the same UI as the hosted demo on `http://localhost:8080`.
+Serves the UI on `http://localhost:8080`.
 
 ```bash
 pytest                               # 38 unit tests, no cloud access needed
@@ -334,7 +313,7 @@ open door.
 
 ## Demo account
 
-The hosted demo runs against a **seeded sandbox**, not a production account. The
+This was built against a **seeded sandbox**, not a production account. The
 `seed/` Terraform builds its deliberate mess: an untagged instance, an
 unattached Elastic IP, orphaned volumes, inconsistently named buckets, a
 security group open to the world, never-invoked functions. Everything is
